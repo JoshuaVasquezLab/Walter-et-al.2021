@@ -1,0 +1,335 @@
+---
+title: "Analysis of Measured MFI in Untreated Tissue Sample"
+output: github_document
+---
+
+## Analysis of MFI values of Tissue Samples
+
+This is an R Markdown format used for publishing markdown documents to GitHub. When you click the **Knit** button all R code chunks are run and a markdown file (.md) suitable for publishing to GitHub is generated.
+
+#install necessary packages
+```{r setup, include=FALSE}
+
+install.packages("ggplot2")
+install.packages("tidyverse")
+install.packages("brms")
+install.packages("conflicted")
+install.packages("dplyr")
+install.packages("magrittr")
+install.packages("conflicted")
+install.packages("readr")
+
+library(ggplot2)
+library(tidyverse)
+library(tidyr)
+library(brms)
+library(conflicted)
+library(dplyr)
+filter <- dplyr::filter
+library(magrittr) #for pipeline %>% used in ggplot
+library(readr)
+install.packages("gridExtra")
+library(gridExtra)
+
+```
+
+## Download 2 files for MFI Inner (Caseum) and Outer (Cuff) Location
+
+```{files for Caseum and Cuff region}
+B_0274_inner_ROI <- read_csv("B_0274_inner.csv", 
+                             col_types = cols_only(`Maximum intensity_0` = col_guess(), 
+                                                   `Maximum intensity_1` = col_guess(), 
+                                                   `Mean Intensity_0` = col_guess(), 
+                                                   `Mean Intensity_1` = col_guess(), 
+                                                   `Size in pixels` = col_guess(), `Total Intensity_0` = col_guess(), 
+                                                   `Total Intensity_1` = col_guess(), 
+                                                   `Minimum intensity in neighborhood_0` = col_guess(), 
+                                                   `Minimum intensity in neighborhood_1` = col_guess(),
+                                                   object_id = col_guess()))
+
+B_0274_outer_ROI <- read_csv("B_0274_outer.csv", 
+                             col_types = cols_only(`Maximum intensity_0` = col_guess(), 
+                                                   `Maximum intensity_1` = col_guess(), 
+                                                   `Mean Intensity_0` = col_guess(), 
+                                                   `Mean Intensity_1` = col_guess(), 
+                                                   `Size in pixels` = col_guess(), `Total Intensity_0` = col_guess(), 
+                                                   `Total Intensity_1` = col_guess(), 
+                                                   `Minimum intensity in neighborhood_0` = col_guess(), 
+                                                   `Minimum intensity in neighborhood_1` = col_guess(),
+                                                   object_id = col_guess()))
+
+```
+All files will be downloaded to current directory as two individual datasets
+
+## Bind separate dataset
+
+Rename column names to bind datasets:
+
+```{Rename Columns}
+BI <- data.frame(Object_ID = B_0274_inner_ROI$object_id , Treatment = "Untreated" ,  
+                              Location = "Inner" , 
+                              Pixel_Size = B_0274_inner_ROI$`Size in pixels`,
+                              Max_Red = B_0274_inner_ROI$`Maximum intensity_0`, 
+                              Max_Green = B_0274_inner_ROI$`Maximum intensity_1`, 
+                              MFI_Red = B_0274_inner_ROI$`Mean Intensity_0`, 
+                              MFI_Green = B_0274_inner_ROI$`Mean Intensity_1`,
+                              Nei_Red = B_0274_inner_ROI$`Minimum intensity in neighborhood_0`,
+                              Nei_Green = B_0274_inner_ROI$`Minimum intensity in neighborhood_1`,
+                              Total_Red = B_0274_inner_ROI$`Total Intensity_0`,
+                              Total_Green = B_0274_inner_ROI$`Total Intensity_1`)
+
+
+
+BO <- data.frame(Object_ID = B_0274_outer_ROI$object_id , Treatment = "Untreated" ,  
+                               Location = "Outer" , 
+                               Pixel_Size = B_0274_outer_ROI$`Size in pixels` ,
+                               Max_Red = B_0274_outer_ROI$`Maximum intensity_0`, 
+                               Max_Green = B_0274_outer_ROI$`Maximum intensity_1`, 
+                               MFI_Red = B_0274_outer_ROI$`Mean Intensity_0`, 
+                               MFI_Green = B_0274_outer_ROI$`Mean Intensity_1`,
+                               Nei_Red = B_0274_outer_ROI$`Minimum intensity in neighborhood_0`,
+                               Nei_Green = B_0274_outer_ROI$`Minimum intensity in neighborhood_1`,
+                               Total_Red = B_0274_outer_ROI$`Total Intensity_0`,
+                               Total_Green = B_0274_outer_ROI$`Total Intensity_1`)
+
+
+```
+
+## Combine datasets
+
+Combine dataframes BI and BO and create new columns for background corrected MFI values:
+
+```{Combine Factors}
+Pivot_Data<- rbind (BI, BO)
+Pivot_Data$Red <- Pivot_Data$MFI_Red - Pivot_Data$Nei_Red
+Pivot_Data$Green <- Pivot_Data$MFI_Green - Pivot_Data$Nei_Green
+Pivot_Data$Ratio <- Pivot_Data$Red / Pivot_Data$Green
+
+#create dataset with original values for MFI
+pivot_data_origina_background <- Pivot_Data %>%
+  pivot_longer(
+    cols = c('Red', 'Green'),
+    names_to = "Channel",
+    values_to = "MFI")
+#to log transform the values for graphs to remove outliers
+Pivot_Log_Data <- Pivot_Data
+Pivot_Log_Data$Red <- log10(Pivot_Log_Data$Red)
+Pivot_Log_Data$Green <- log10(Pivot_Log_Data$Green)
+
+summary(Pivot_Data$Ratio)
+Pivot_Data$Log_Ratio <- log10(Pivot_Data$Ratio)
+summary(Pivot_Data$Log_Ratio)
+
+summary(Pivot_Data$Ratio)
+
+dat_back_3 <- Pivot_Data %>%
+  pivot_longer(
+    cols = c('Red', 'Green'),
+    names_to = "Channel",
+    values_to = "MFI")  
+```
+## filter ratio values based on location for new datasets for analysis
+
+```{Separate location for analysis}
+dat_back_3_Inner <- filter(dat_back_3, Location == "Inner")
+dat_back_3_Outer <- filter(dat_back_3, Location == "Outer")
+
+quantile(dat_back_3_Inner$Ratio, 0.25)
+quantile(dat_back_3_Inner$Ratio, 0.50)
+quantile(dat_back_3_Inner$Ratio, 0.75)
+IQR(dat_back_3_Inner$Ratio)
+
+IQR(dat_back_3_Outer$Ratio)
+quantile(dat_back_3_Outer$Ratio, 0.25)
+quantile(dat_back_3_Outer$Ratio, 0.50)
+quantile(dat_back_3_Outer$Ratio, 0.75)
+
+```
+
+
+#Info on test selected for comparing differences between mean values
+
+Kruskal wallis one-way ANOVA method for comparing k independent samples
+For groups identically distributed (null hypothesis?) But also used to compare
+median values. The test assumes that obser. in each group are identically and
+independently distributed apart from location. This form of testing is selected where
+the assumptions for parametric anova are not met.
+
+```{sd}
+#One-Way non-parametric ANOVA (Kruskal Wallis Test)
+str(tree_1$Location) # make sure location is a factor
+aggregate(Log_Ratio~Location, data = dat_back_3, sd)
+```
+Location                Log_Ratio
+1    Inner 0.6175149843218231682229
+2    Outer 0.8049127793920733964228
+```{mean}
+aggregate(Log_Ratio~Location, data = dat_back_3, mean)
+```
+Location                  Log_Ratio
+1    Inner -0.64518047927759303306061
+2    Outer  0.06216522540183311296147
+```{variance}
+aggregate(Log_Ratio~Location, data = dat_back_3, var)
+```
+Location                Log_Ratio
+1    Inner 0.3813247558619815014147
+2    Outer 0.6478845824286726395869
+
+Tests for log transformed ratio values based on location
+```{KW Test}
+      kruskal.test(Log_Ratio~Location, data = dat_back_3)
+```
+
+#Kruskal-Wallis rank sum test
+data:  Log_Ratio by Location
+Kruskal-Wallis chi-squared = 51409.69115646242426, df = 1, p-value < 2.2204460492503131e-16
+
+Results show that the p-value was significant for dominance of median values
+between groups. The null hypothesis can be rejected
+Pairwise comparisons using Wilcoxon rank sum test
+
+```{pairwise wilcox test}
+      pairwise.wilcox.test(dat_back_3$Log_Ratio, dat_back_3$Location, paired = FALSE, p.adj = "BH")
+```
+
+data:  tree_1$Log_Ratio and tree_1$Location 
+Inner                 
+Outer < 2.22044604925031e-16
+P value adjustment method: BH
+
+Pairwise wilcox test uses the pairwise command to test every sample to
+everyother sample to calculate pairwise compairisons between group levels
+with corrections for multiple testing.
+
+
+#Kruskal Wallis test Inner location Pre vs 23s
+boxplots tell us that the MFI values need to be log transformed to account for outliers
+```{boxplot, echo = FALSE}
+boxplot(Log_Ratio~Location, data = dat_back_3_Inner)
+```
+
+```{pairwise wilcox test}
+kruskal.test(Log_Ratio_Location, data = dat_back_3_Inner)
+```
+Kruskal-Wallis rank sum test
+
+data:  MFI by Channel
+Kruskal-Wallis chi-squared = 83967.41080970132316, df = 1, p-value <
+  2.2204460492503131e-16
+
+Results show that there are differences in dominance of medians of MFI channels 23s and PrerRNA
+```{pairwise wilcox test}
+pairwise.wilcox.test(dat_back_3_Inner$MFI, Tree_Inner$Channel, paired = FALSE, p.adj = "BH")
+```
+Pairwise comparisons using Wilcoxon rank sum test 
+data:  Tree_Inner$MFI and Tree_Inner$Channel 
+Green                 
+Red < 2.22044604925031e-16
+P value adjustment method: BH 
+
+Results show that there are significant differences between groups 23s and pre for MFI
+
+#Testing for variance within groups
+```{mean}
+aggregate(MFI~Channel, data = dat_back_3_Inner, mean)
+```
+#Channel                     MFI
+1   Green 3.505382695053870456547
+2     Red 2.860202215776277423487
+```{sd}
+aggregate(MFI~Channel, data = dat_back_3_Inner, sd)
+```
+```{variance}
+aggregate(MFI~Channel, data = dat_back_3_Inner, var)
+```
+#Channel                       MFI
+1   Green 0.06849946342499749207811
+2     Red 0.28568441451431980659947
+boxplot(MFI~Channel, data = Tree_Inner)
+
+
+#Kruskal Wallis test Outer location Pre vs 23s
+Boxplots tell us that the MFI values need to be log transformed to account for outliers
+```{kruskal-wallis}
+kruskal.test(MFI~Channel, data = dat_back_3_Outer)
+```
+Kruskal-Wallis rank sum test
+data:  MFI by Channel
+Kruskal-Wallis chi-squared = 446.1596899552567379, df = 1, p-value <
+  2.2204460492503131e-16
+
+
+Results show that there are differences in dominance of medians of MFI channels 23s and PrerRNA
+#pairwise wilcox test
+```{pairwise wilcox test}
+pairwise.wilcox.test(dat_back_3_Outer$MFI, dat_back_3_Outer$Channel, paired = FALSE, p.adj = "BH")
+```
+Pairwise comparisons using Wilcoxon rank sum test 
+data:  dat_back_3_Outer-MFI dat_back_3_Outer$Channel 
+Green                 
+Red < 2.22044604925031e-16
+P value adjustment method: BH 
+
+Results show that there are significant differences between groups 23s and pre for MFI
+
+#Testing for variance within groups
+```{pairwise wilcox test}
+aggregate(MFI~Channel, data = dat_back_3_Outer, mean)
+```
+#Channel                    MFI
+1   Green 3.48042161673112104836
+2     Red 3.54258684213295405030
+```{pairwise wilcox test}
+aggregate(MFI~Channel, data = dat_back_3_Outer, sd)
+```
+```{pairwise wilcox test}
+aggregate(MFI~Channel, data = dat_back_3_Outer, var)
+```
+#Channel                      MFI
+1   Green 0.1289192666483613691764
+2     Red 0.4341223453724966652167
+
+```{r}
+#Kruskal Wallice Test for MFI values
+
+#Testing for variance
+aggregate(Red~Location, data = cat_3, var)
+
+Location       Red
+1   Caseum  15389649
+2     Cuff 104985177
+
+#Testing for variance in green based on location
+aggregate(Green~Location, data = cat_3, var)
+
+Location   Green
+1   Caseum 4671665
+2     Cuff 9515047
+
+#Testing median values within locations for MFI Pre-rRNA
+
+kruskal.test(Red~Location, data = cat_3)
+Kruskal-Wallis rank sum test
+
+data:  Red by Location
+Kruskal-Wallis chi-squared = 30211, df = 1, p-value < 2.2e-16
+
+##test for difference insw MFI values based on location with
+non.04 <- lm(Red~Location, data=cat_3)
+summary(non.04)
+table(cat_3$Location)
+# Testing median values within locations for MFI Green
+kruskal.test(Green~Location, data = cat_3)
+
+> kruskal.test(Green~Location, data = cat_3)
+
+Kruskal-Wallis rank sum test
+
+data:  Green by Location
+Kruskal-Wallis chi-squared = 0.25117, df = 1, p-value = 0.6163
+
+```
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
