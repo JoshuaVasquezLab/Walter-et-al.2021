@@ -145,7 +145,26 @@ quantile(dat_back_3_Outer$Ratio, 0.50)
 quantile(dat_back_3_Outer$Ratio, 0.75)
 
 ```
+# Code to Generate Density Plots from Extended Figure 2
 
+#for a combined dataset df with per entry metadata Sample and Region (Tissue Subtype)
+samples <- unique(df$Sample)
+p <- list()
+for (s in 1:length(samples)) {
+  med_df <- cleaned[cleaned$Sample == samples[s], ] %>%
+  group_by(Region) %>%
+  summarize(median=median(Log_Ratio_MFI))
+  
+  
+  p[[c]] <- ggplot(cleaned[cleaned$Sample == samples[s], ],  aes(x=Log_Ratio_MFI, fill = Region)) +  geom_density(alpha = 0.5) +  scale_fill_manual(values=c( "#43a2ca", "#de2d26")) +
+            theme_bw() + theme(axis.title.y = element_blank()) + ylab("") + geom_vline(data=med_df, aes(xintercept=median, color=Region),
+             linetype="dashed") + scale_color_manual(values=c("#43a2ca", "#de2d26"))
+}
+
+plot_grid(plotlist = p, ncol = 1) 
+
+
+# Statistical Tests
 
 #Info on test selected for comparing differences between mean values
 
