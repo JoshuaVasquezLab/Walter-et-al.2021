@@ -333,5 +333,31 @@ Kruskal-Wallis chi-squared = 0.25117, df = 1, p-value = 0.6163
 
 ```
 
+# F-test for variance 
+F-test to compare two variances
+A F-test was conducted in order to compare variance between two samples, in this case inner versus outer location. Results show that we can reject the null hypothesis that there is no variability between groups. A p-value of 2.2 e-16 well below the significance level of 0.05, for MFI values for both Pre-rRNA and 23S- rRNA, indicates that there is a significant difference in measured MFI values based on location.
+# separate df into two group : cuff and caseum for location. 
+# set values that will be used for models
+# attach(df)
+# names(df)
+# F_Inner <- var.test(Log_Ratio ~ Location, data = df,
+# alternative = “two.sided”)
+
+F test to compare two variances
+data: Log_Ratio by Location
+F = 0.14095, num df = 126572, denom df = 38304, p-value < 2.2e-16 alternative hypothesis: true ratio of variances is not equal to 1
+95 percent confidence interval:
+0.1386878 0.1432446 sample estimates: ratio of variances
+0.1409528
+
+
+# F_outer <- var.test(Log_Ratio ~ Location, data = df,
+# alternative = “two.sided")
+F test to compare two variances
+data: Log_Ratio by Location
+F = 0.4865, num df = 126572, denom df = 38304, p-value < 2.2e-16 alternative hypothesis: true ratio of variances is not equal to 1
+95 percent confidence interval:
+0.4786864 0.4944145 sample estimates: ratio of variances
+0.4865042
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
